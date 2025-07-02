@@ -86,18 +86,29 @@
         .control-button.reset:hover {
             background-color: #da190b;
         }
-        .select-container {
+        .file-input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             margin-bottom: 20px;
         }
-        #imageSelector {
-            padding: 10px 15px;
+        .file-input-label {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 25px;
             border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 1em;
-            background-color: #f9f9f9;
             cursor: pointer;
-            width: 70%; /* Decreased width for the select box */
-            max-width: 300px; /* Added max-width for responsiveness */
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 10px;
+        }
+        .file-input-label:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
+        #imageUpload {
+            display: none; /* Hide the default file input */
         }
         .app-container h1 { /* Enlarged title */
             font-size: 3.5em; /* Increased font size */
@@ -112,14 +123,14 @@
 <body>
     <div class="app-container">
         <h1 class="text-3xl font-bold text-gray-800 mb-6">Colorindo com Bento!</h1>
-        <p class="text-gray-600 mb-4">Escolha uma cor e clique na imagem para colorir.</p>
+        <p class="text-gray-600 mb-4">Escolha uma cor e clique na imagem para colorir, ou faça o upload da sua própria imagem!</p>
 
-        <div class="select-container">
-            <label for="imageSelector" class="block text-gray-700 text-sm font-bold mb-2">Escolha uma página:</label>
-            <select id="imageSelector">
-                <!-- Options will be populated by JavaScript -->
-            </select>
+        <div class="file-input-container">
+            <label for="imageUpload" class="file-input-label">Carregar Imagem</label>
+            <input type="file" id="imageUpload" accept="image/*">
         </div>
+
+        <!-- O dropdown menu foi removido -->
 
         <div class="color-palette" id="colorPalette">
             <!-- Color swatches will be generated here by JavaScript -->
@@ -140,7 +151,8 @@
         const colorPalette = document.getElementById('colorPalette');
         const resetButton = document.getElementById('resetButton');
         const exportButton = document.getElementById('exportButton');
-        const imageSelector = document.getElementById('imageSelector');
+        // const imageSelector = document.getElementById('imageSelector'); // Removido
+        const imageUpload = document.getElementById('imageUpload');
 
         let originalImage = new Image();
         let currentFillColor = { r: 0, g: 0, b: 0, a: 255 }; // Default fill color (black)
@@ -193,19 +205,8 @@
         // Tolerance for the flood fill algorithm (adjusted for higher precision)
         const colorTolerance = 10; 
 
-        // Define the coloring pages with their names and image URLs from uploaded files
-        const coloringPages = [
-            { name: 'Bento Goods #1 (Aniversário)', url: 'aniversario.jpg' },
-            { name: 'Bento Goods #2 (Bento e Amigos)', url: 'bento.jpg' },
-            { name: 'Bento Goods #3 (Brawl Stars)', url: 'brawe.jpg' },
-            { name: 'Bento Goods #4 (Capa)', url: 'capa.jpg' },
-            { name: 'Bento Goods #5 (Capa 1)', url: 'capa1.jpg' },
-            { name: 'Bento Goods #6 (Jiu-Jitsu)', url: 'jiujitsu.jpg' },
-            { name: 'Bento Goods #7 (Piano)', url: 'piano.jpg' },
-            { name: 'Bento Goods #8 (Pokémon)', url: 'pokemon.jpg' },
-            { name: 'Bento Goods #9 (Saxofone)', url: 'sax.jpg' },
-            { name: 'Bento Goods #10 (Tênis)', url: 'tenis.jpg' }
-        ];
+        // Define the single default coloring page
+        const defaultColoringPageUrl = 'uploaded:aniversario.jpg-ca61a216-1204-4e5e-a235-841f39a8402d'; // Bento Goods #1 (Aniversário)
 
         // Function to convert HEX to RGBA
         function hexToRgba(hex) {
@@ -339,35 +340,6 @@
             }
         }
 
-        // Populate the image selector dropdown
-        async function populateImageSelector() {
-            // Define image URLs directly from uploaded files
-            const uploadedImageUrls = [
-                { name: 'Bento Goods #1 (Aniversário)', url: 'Bento Goods #1.png' },
-                { name: 'Bento Goods #2 (Bento e Amigos)', url: 'Bento Goods #2.png' },
-                { name: 'Bento Goods #3 (Brawl Stars)', url: 'Bento Goods #3.png' },
-                { name: 'Bento Goods #4 (Capa)', url: 'Bento Goods #4.png' },
-                { name: 'Bento Goods #5 (Capa 1)', url: 'Bento Goods #5.png' },
-                { name: 'Bento Goods #6 (Jiu-Jitsu)', url: 'Bento Goods #6.png' },
-                { name: 'Bento Goods #7 (Piano)', url: 'Bento Goods #7.png' },
-                { name: 'Bento Goods #8 (Pokémon)', url: 'Bento Goods #8.png' },
-                { name: 'Bento Goods #9 (Saxofone)', url: 'Bento Goods #9.png' },
-                { name: 'Bento Goods #10 (Tênis)', url: 'Bento Goods #10.png' }
-            ];
-
-            for (let i = 0; i < uploadedImageUrls.length; i++) {
-                const page = uploadedImageUrls[i];
-                const option = document.createElement('option');
-                option.value = page.url; // Use the URL directly as the value
-                option.textContent = page.name;
-                imageSelector.appendChild(option);
-            }
-            // Load the first image by default
-            if (uploadedImageUrls.length > 0) {
-                await loadImageToCanvas(uploadedImageUrls[0].url);
-            }
-        }
-
         // Event listener for canvas click to color
         canvas.addEventListener('click', (event) => {
             const rect = canvas.getBoundingClientRect();
@@ -395,17 +367,25 @@
             document.body.removeChild(link);
         });
 
-        // Event listener for image selector change
-        imageSelector.addEventListener('change', async (event) => {
-            const imageUrl = event.target.value;
-            await loadImageToCanvas(imageUrl);
+        // Event listener for image upload
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    loadImageToCanvas(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
         });
 
         // Initialize the app when the window loads
         window.onload = async () => {
             initializeColorPalette();
-            await populateImageSelector();
+            // Load the default image
+            await loadImageToCanvas(defaultColoringPageUrl);
         };
     </script>
 </body>
 </html>
+
