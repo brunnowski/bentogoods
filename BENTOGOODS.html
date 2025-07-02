@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colorindo com Bento!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .app-container {
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            text-align: center;
+            max-width: 800px; /* Adjusted for better balance */
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas {
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            touch-action: none; /* Prevents default touch behavior for better interaction */
+            max-width: 100%; /* Ensures the canvas is responsive */
+            height: auto; /* Maintains aspect ratio */
+        }
+        .color-palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .color-swatch {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .color-swatch.active {
+            border-color: #333;
+            transform: scale(1.1);
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .control-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .control-button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .control-button.reset {
+            background-color: #f44336;
+        }
+        .control-button.reset:hover {
+            background-color: #da190b;
+        }
+        .select-container {
+            margin-bottom: 20px;
+        }
+        #imageSelector {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            width: 70%; /* Decreased width for the select box */
+            max-width: 300px; /* Added max-width for responsiveness */
+        }
+        .app-container h1 { /* Enlarged title */
+            font-size: 3.5em; /* Increased font size */
+            margin-bottom: 15px;
+        }
+        .app-container p { /* Enlarged subtitle */
+            font-size: 1.2em; /* Increased font size */
+            margin-bottom: 25px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Colorindo com Bento!</h1>
+        <p class="text-gray-600 mb-4">Escolha uma cor e clique na imagem para colorir.</p>
+
+        <div class="select-container">
+            <label for="imageSelector" class="block text-gray-700 text-sm font-bold mb-2">Escolha uma página:</label>
+            <select id="imageSelector">
+                <!-- Options will be populated by JavaScript -->
+            </select>
+        </div>
+
+        <div class="color-palette" id="colorPalette">
+            <!-- Color swatches will be generated here by JavaScript -->
+        </div>
+
+        <canvas id="coloringCanvas"></canvas>
+
+        <div class="controls">
+            <button class="control-button reset" id="resetButton">Reiniciar</button>
+            <button class="control-button" id="exportButton">Exportar Imagem</button>
+            <button class="control-button" onclick="window.print()">Imprimir</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('coloringCanvas');
+        const ctx = canvas.getContext('2d');
+        const colorPalette = document.getElementById('colorPalette');
+        const resetButton = document.getElementById('resetButton');
+        const exportButton = document.getElementById('exportButton');
+        const imageSelector = document.getElementById('imageSelector');
+
+        let originalImage = new Image();
+        let currentFillColor = { r: 0, g: 0, b: 0, a: 255 }; // Default fill color (black)
+        const colors = [
+            // Reds / Pinks
+            { name: 'Vermelho', hex: '#FF0000' },
+            { name: 'Carmesim', hex: '#DC143C' },
+            { name: 'Vermelho Escuro', hex: '#8B0000' },
+            { name: 'Rosa Choque', hex: '#FF1493' },
+            { name: 'Salmão', hex: '#FA8072' },
+            { name: 'Magenta', hex: '#FF00FF' },
+            // Oranges / Browns / Golds
+            { name: 'Laranja', hex: '#FFA500' },
+            { name: 'Laranja Escuro', hex: '#FF8C00' },
+            { name: 'Coral', hex: '#FF7F50' },
+            { name: 'Chocolate', hex: '#D2691E' },
+            { name: 'Cobre', hex: '#B87333' },
+            { name: 'Bronze', hex: '#CD7F32' },
+            { name: 'Marrom', hex: '#A52A2A' },
+            { name: 'Dourado', hex: '#FFD700' },
+            // Yellows / Creams
+            { name: 'Amarelo', hex: '#FFFF00' },
+            { name: 'Amarelo Claro', hex: '#FFFFED' },
+            { name: 'Creme', hex: '#FFFDD0' },
+            { name: 'Bege', hex: '#F5F5DC' },
+            // Greens / Olives
+            { name: 'Verde Limão', hex: '#32CD32' },
+            { name: 'Verde Floresta', hex: '#228B22' },
+            { name: 'Verde Militar', hex: '#556B2F' },
+            { name: 'Oliva', hex: '#808000' },
+            // Blues / Turquoises
+            { name: 'Verde Água', hex: '#00FFFF' },
+            { name: 'Turquesa', hex: '#40E0D0' },
+            { name: 'Azul Claro', hex: '#ADD8E6' },
+            { name: 'Azul Céu', hex: '#87CEEB' },
+            { name: 'Azul Aço', hex: '#4682B4' },
+            { name: 'Azul Marinho', hex: '#000080' },
+            { name: 'Índigo', hex: '#4B0082' },
+            // Purples / Violets
+            { name: 'Roxo', hex: '#800080' },
+            { name: 'Púrpura', hex: '#800080' }, /* Note: Púrpura and Roxo have the same hex in the original list, kept for consistency */
+            { name: 'Violeta', hex: '#EE82EE' },
+            // Neutrals
+            { name: 'Branco', hex: '#FFFFFF' },
+            { name: 'Cinza', hex: '#808080' },
+            { name: 'Prateado', hex: '#C0C0C0' },
+            { name: 'Preto', hex: '#000000' }
+        ];
+
+        // Tolerance for the flood fill algorithm (adjusted for higher precision)
+        const colorTolerance = 10; 
+
+        // Define the coloring pages with their names and image URLs from uploaded files
+        const coloringPages = [
+            { name: 'Bento Goods #1 (Aniversário)', url: 'aniversario.jpg' },
+            { name: 'Bento Goods #2 (Bento e Amigos)', url: 'bento.jpg' },
+            { name: 'Bento Goods #3 (Brawl Stars)', url: 'brawe.jpg' },
+            { name: 'Bento Goods #4 (Capa)', url: 'capa.jpg' },
+            { name: 'Bento Goods #5 (Capa 1)', url: 'capa1.jpg' },
+            { name: 'Bento Goods #6 (Jiu-Jitsu)', url: 'jiujitsu.jpg' },
+            { name: 'Bento Goods #7 (Piano)', url: 'piano.jpg' },
+            { name: 'Bento Goods #8 (Pokémon)', url: 'pokemon.jpg' },
+            { name: 'Bento Goods #9 (Saxofone)', url: 'sax.jpg' },
+            { name: 'Bento Goods #10 (Tênis)', url: 'tenis.jpg' }
+        ];
+
+        // Function to convert HEX to RGBA
+        function hexToRgba(hex) {
+            let r = 0, g = 0, b = 0, a = 255;
+            // Handle #RGB format
+            if (hex.length === 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length === 7) { // Handle #RRGGBB format
+                r = parseInt(hex.substring(1, 3), 16);
+                g = parseInt(hex.substring(3, 5), 16);
+                b = parseInt(hex.substring(5, 7), 16);
+            }
+            return { r, g, b, a };
+        }
+
+        // Function to check if two colors are similar within a tolerance
+        function colorsMatch(color1, color2, tolerance) {
+            return (
+                Math.abs(color1.r - color2.r) <= tolerance &&
+                Math.abs(color1.g - color2.g) <= tolerance &&
+                Math.abs(color1.b - color2.b) <= tolerance &&
+                Math.abs(color1.a - color2.a) <= tolerance
+            );
+        }
+
+        // Function to get the color of a pixel in ImageData
+        function getPixelColor(imageData, x, y) {
+            const index = (y * imageData.width + x) * 4;
+            return {
+                r: imageData.data[index],
+                g: imageData.data[index + 1],
+                b: imageData.data[index + 2],
+                a: imageData.data[index + 3]
+            };
+        }
+
+        // Function to set the color of a pixel in ImageData
+        function setPixelColor(imageData, x, y, color) {
+            const index = (y * imageData.width + x) * 4;
+            imageData.data[index] = color.r;
+            imageData.data[index + 1] = color.g;
+            imageData.data[index + 2] = color.b;
+            imageData.data[index + 3] = color.a;
+        }
+
+        // Flood Fill algorithm
+        function floodFill(startX, startY, fillColor) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const targetColor = getPixelColor(imageData, startX, startY);
+
+            // If the fill color is the same as the target color, do nothing
+            if (colorsMatch(targetColor, fillColor, 0)) {
+                return;
+            }
+
+            const stack = [{ x: startX, y: startY }];
+            const visited = new Set(); // To prevent infinite loops and reprocessing
+
+            while (stack.length > 0) {
+                const { x, y } = stack.pop();
+
+                // Check if the pixel is within canvas bounds
+                if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+                    continue;
+                }
+
+                const pixelColor = getPixelColor(imageData, x, y);
+                const pixelKey = `${x},${y}`; // Key for the visited Set
+
+                // If the pixel color doesn't match the target color or it has been visited, skip
+                if (!colorsMatch(pixelColor, targetColor, colorTolerance) || visited.has(pixelKey)) {
+                    continue;
+                }
+
+                // Set the pixel color and mark as visited
+                setPixelColor(imageData, x, y, fillColor);
+                visited.add(pixelKey);
+
+                // Add neighbors to the stack
+                stack.push({ x: x + 1, y: y });
+                stack.push({ x: x - 1, y: y });
+                stack.push({ x: x, y: y + 1 });
+                stack.push({ x: x, y: y - 1 });
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // Function to load and draw the image on the canvas
+        async function loadImageToCanvas(imageUrl) {
+            return new Promise((resolve, reject) => {
+                originalImage.onload = () => {
+                    // Adjust canvas size to the image
+                    canvas.width = originalImage.width;
+                    canvas.height = originalImage.height;
+
+                    // Draw the original image on the canvas
+                    ctx.drawImage(originalImage, 0, 0);
+                    resolve();
+                };
+                originalImage.onerror = (error) => {
+                    console.error("Error loading image:", error);
+                    reject(error);
+                };
+                originalImage.src = imageUrl;
+            });
+        }
+
+        // Initialize the color palette
+        function initializeColorPalette() {
+            colors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color.hex;
+                swatch.dataset.color = JSON.stringify(hexToRgba(color.hex));
+                swatch.title = color.name;
+                swatch.addEventListener('click', () => {
+                    // Remove 'active' class from all swatches
+                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                    // Add 'active' class to the clicked swatch
+                    swatch.classList.add('active');
+                    currentFillColor = JSON.parse(swatch.dataset.color);
+                });
+                colorPalette.appendChild(swatch);
+            });
+            // Activate the first color by default
+            if (colorPalette.children.length > 0) {
+                colorPalette.children[0].classList.add('active');
+                currentFillColor = JSON.parse(colorPalette.children[0].dataset.color);
+            }
+        }
+
+        // Populate the image selector dropdown
+        async function populateImageSelector() {
+            // Define image URLs directly from uploaded files
+            const uploadedImageUrls = [
+                { name: 'Bento Goods #1 (Aniversário)', url: 'Bento Goods #1.png' },
+                { name: 'Bento Goods #2 (Bento e Amigos)', url: 'Bento Goods #2.png' },
+                { name: 'Bento Goods #3 (Brawl Stars)', url: 'Bento Goods #3.png' },
+                { name: 'Bento Goods #4 (Capa)', url: 'Bento Goods #4.png' },
+                { name: 'Bento Goods #5 (Capa 1)', url: 'Bento Goods #5.png' },
+                { name: 'Bento Goods #6 (Jiu-Jitsu)', url: 'Bento Goods #6.png' },
+                { name: 'Bento Goods #7 (Piano)', url: 'Bento Goods #7.png' },
+                { name: 'Bento Goods #8 (Pokémon)', url: 'Bento Goods #8.png' },
+                { name: 'Bento Goods #9 (Saxofone)', url: 'Bento Goods #9.png' },
+                { name: 'Bento Goods #10 (Tênis)', url: 'Bento Goods #10.png' }
+            ];
+
+            for (let i = 0; i < uploadedImageUrls.length; i++) {
+                const page = uploadedImageUrls[i];
+                const option = document.createElement('option');
+                option.value = page.url; // Use the URL directly as the value
+                option.textContent = page.name;
+                imageSelector.appendChild(option);
+            }
+            // Load the first image by default
+            if (uploadedImageUrls.length > 0) {
+                await loadImageToCanvas(uploadedImageUrls[0].url);
+            }
+        }
+
+        // Event listener for canvas click to color
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            // Calculate click coordinates relative to the canvas and its scale
+            const x = Math.floor((event.clientX - rect.left) * (canvas.width / rect.width));
+            const y = Math.floor((event.clientY - rect.top) * (canvas.height / rect.height));
+            floodFill(x, y, currentFillColor);
+        });
+
+        // Event listener for the reset button
+        resetButton.addEventListener('click', () => {
+            // Redraw the original image on the canvas to reset
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+            ctx.drawImage(originalImage, 0, 0); // Draw the original image
+        });
+
+        // Event listener for the export button
+        exportButton.addEventListener('click', () => {
+            const dataURL = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'bento_colorido.png';
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Event listener for image selector change
+        imageSelector.addEventListener('change', async (event) => {
+            const imageUrl = event.target.value;
+            await loadImageToCanvas(imageUrl);
+        });
+
+        // Initialize the app when the window loads
+        window.onload = async () => {
+            initializeColorPalette();
+            await populateImageSelector();
+        };
+    </script>
+</body>
+</html>
